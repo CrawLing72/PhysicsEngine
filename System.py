@@ -1,17 +1,17 @@
 import pygame
 
-def perspective_projection(vertex, screen_width, screen_height, scale, z_offset):
+def perspective_projection(vertex, screen_width, screen_height, scale, z_offset, _x, _y):
     z = vertex[2] + z_offset  # 카메라의 Z 오프셋
     if z == 0:
         z = 1e-5  # Z=0일 경우를 방지
-    x = int((vertex[0] / z) * scale + screen_width // 2)
-    y = int((-vertex[1] / z) * scale + screen_height // 2)
+    x = int((vertex[0] / z) * scale + screen_width // 2) + _x
+    y = int((-vertex[1] / z) * scale + screen_height // 2) + _y
     return x, y
 
 
-def render_obj(screen, vertices, faces, scale, screen_width, screen_height, z_offset):
+def render_obj(screen, vertices, faces, scale, screen_width, screen_height, z_offset, x_offset, y_offset):
     for face in faces:
-        points = [perspective_projection(vertices[vert[0] - 1], screen_width, screen_height, scale, z_offset) for vert in face]
+        points = [perspective_projection(vertices[vert[0] - 1], screen_width, screen_height, scale, z_offset, x_offset, y_offset) for vert in face]
         pygame.draw.polygon(screen, (255, 255, 255), points, 1)  # 면을 선으로 그리기
 
 
