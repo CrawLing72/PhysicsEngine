@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="GameBasicProject2" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.11 (PhysicsEngine)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="GameBasicProject2" project-jdk-type="Python SDK" />
 </project>
