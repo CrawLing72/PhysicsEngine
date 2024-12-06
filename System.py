@@ -16,6 +16,8 @@ def project_polygon_to_plane(vertices, plane):
         return [(v[1], v[2]) for v in vertices]
     elif plane == "ZX":
         return [(v[0], v[2]) for v in vertices]
+    else:
+        raise ValueError(f"Invalid plane: {plane}")
 
 
 def aabb_collision(box1, box2):
@@ -48,6 +50,7 @@ def polygon_AABB_init(vertices):
         poly_max_x = max(p[0] for p in projected_vertices)
         poly_max_y = max(p[1] for p in projected_vertices)
         temp_dict[plane] = poly_min_x, poly_min_y, poly_max_x, poly_max_y
+
     return temp_dict
 
 
@@ -71,9 +74,7 @@ class Character:
         self.isColliding = False # 충돌 당하는 놈인가?
 
     def perspective_projection(self, vertex, screen_width, screen_height, scale, fov=60):
-        z = vertex[2] + self.z_offset  # 카메라의 Z 오프셋
-        if z == 0:
-            z = 1e-5  # Z=0일 경우를 방지
+        z = max(vertex[2] + self.z_offset, 1e-5)# Z=0일 경우를 방지
 
         aspect_ratio = screen_width / screen_height
         f = 1 / math.tan(math.radians(fov) / 2)
@@ -140,11 +141,9 @@ class Character:
             ]
         self.collider_box = polygon_AABB_init(general_points)
 
-    def cal_AABB_while(self, x, y, z): # 초기 계산분에 offset 반영
+    def cal_AABB_while(self, dx, dy, dz): # 초기 계산분에 offset 반영
         self.collider_box = {
-            "XY" : (self.collider_box["XY"][0] + x, self.collider_box["XY"][1] + y, self.collider_box["XY"][2]+ x, self.collider_box["XY"][3] + y),
-            "YZ" : (self.collider_box["YZ"][0] + y, self.collider_box["YZ"][1] + z, self.collider_box["YZ"][2] + y, self.collider_box["YZ"][3] + z),
-            "ZX" : (self.collider_box["ZX"][0] + z, self.collider_box["ZX"][1] + x, self.collider_box["ZX"][2] + z, self.collider_box["ZX"][3] + x),
+            "XY" : (self.collider_box["XY"][0] + dx, self.collider_box["XY"][1] + dy, self.collider_box["XY"][2]+ dx, self.collider_box["XY"][3] + dy),
+            "YZ" : (self.collider_box["YZ"][0] + dy, self.collider_box["YZ"][1] + dz, self.collider_box["YZ"][2] + dy, self.collider_box["YZ"][3] + dz),
+            "ZX" : (self.collider_box["ZX"][0] + dz, self.collider_box["ZX"][1] + dx, self.collider_box["ZX"][2] + dz, self.collider_box["ZX"][3] + dx),
         }
-        print("under : box")
-        print(self.collider_box)

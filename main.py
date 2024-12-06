@@ -10,6 +10,7 @@ clock = pygame.time.Clock()
 scale = 500
 x_offset, y_offset, z_offset = 0, 0, 1
 x_box, y_box, z_box = 0, 0, 1
+
 speed = 10
 
 # under: Stelle Init
@@ -17,6 +18,7 @@ vertices, texture_coords, faces = load_obj("TrailBlazer/untitled.obj")
 Stelle = System.Character()  # 25342 Polygons
 Stelle.set_vtf(vertices, texture_coords, faces)
 Stelle.set_isColliding(True)  # Stelle는 충돌 당하는 Polygon들이 존재하는 Obj
+Stelle.cal_AABB_init(scale)
 
 # under: Box Init
 b_v, b_t, b_f = load_obj("TrailBlazer/box.obj")
@@ -24,6 +26,8 @@ Box = System.Character()
 Box.set_vtf(b_v, b_t, b_f)
 Box.set_isColliding(False)
 Box.cal_AABB_init(scale)
+
+print(Stelle.collider_box)
 
 
 running = True
@@ -34,26 +38,45 @@ while running:
             pygame.quit()
 
     keyEvent = pygame.key.get_pressed()
+
+    stelle_dx, stelle_dy, stelle_dz = 0, 0, 0
+    box_dx, box_dy, box_dz = 0, 0, 0
+
     if keyEvent[pygame.K_w]:
         y_offset -= speed
+        stelle_dy = -speed
     if keyEvent[pygame.K_s]:
         y_offset += speed
+        stelle_dy = speed
     if keyEvent[pygame.K_a]:
         x_offset -= speed
+        stelle_dx = -speed
     if keyEvent[pygame.K_d]:
         x_offset += speed
+        stelle_dx = speed
     if keyEvent[pygame.K_LEFT]:
         x_box -= speed
+        box_dx = -speed
     if keyEvent[pygame.K_RIGHT]:
         x_box += speed
+        box_dx = speed
     if keyEvent[pygame.K_UP]:
         y_box -= speed
+        box_dy = -speed
     if keyEvent[pygame.K_DOWN]:
         y_box += speed
+        box_dy = speed
+    if keyEvent[pygame.K_SPACE]:
+        Stelle.cal_AABB_init(scale)
+        print("Stelle: ")
+        print(Stelle.collider_box)
+        print("Box: ")
+        print(Box.collider_box)
+
     screen.fill((0, 0, 0))
 
     Box.set_offset(x_box, y_box, z_box)
-    Box.cal_AABB_while(x_box, y_box, 0)
+    Box.cal_AABB_while(box_dx, box_dy, box_dz)
 
     Stelle.set_offset(x_offset, y_offset, z_offset)
     Stelle.set_collider_box(Box.collider_box)
