@@ -1,6 +1,9 @@
 import pygame
 import math
 
+from pygame.transform import scale
+
+
 # under : collision related
 
 def project_polygon_to_plane(vertices, plane):
@@ -36,9 +39,16 @@ def polygon_collision(vertices, collider_box):
         poly_max_y = max(p[1] for p in projected_vertices)
 
         poly_aabb = (poly_min_x, poly_min_y, poly_max_x, poly_max_y)
-        if not aabb_collision(poly_aabb, collider_box[plane]):
-            return False  # 충돌 아님
-    return True  # 모든 평면에서 충돌
+
+        # 충돌 조건 수정: AABB가 완전히 포함되어야 충돌로 간주
+        if not (
+            collider_box[plane][0] <= poly_aabb[0] and
+            collider_box[plane][1] <= poly_aabb[1] and
+            collider_box[plane][2] >= poly_aabb[2] and
+            collider_box[plane][3] >= poly_aabb[3]
+        ):
+            return False  # 하나라도 포함되지 않으면 충돌 아님
+    return True  # 모든 평면에서 포함됨
 
 def polygon_AABB_init(vertices):
     """ For Box Collision AABB Info Init."""
@@ -74,45 +84,49 @@ class Character:
         self.isColliding = False # 충돌 당하는 놈인가?
 
     def perspective_projection(self, vertex, screen_width, screen_height, scale, fov=60):
-        z = max(vertex[2] + self.z_offset, 1e-5)# Z=0일 경우를 방지
+        # Z 안정화: z 값이 너무 작으면 최소값으로 설정
+        z = max(vertex[2] + self.z_offset, 1e-5)
 
-        aspect_ratio = screen_width / screen_height
+        # 화면 비율 및 FoV 계산
         f = 1 / math.tan(math.radians(fov) / 2)
 
-        x = int((f * vertex[0] / z) * scale + screen_width // 2 + self.x_offset / z)
-        y = int((-f * vertex[1] / z) * scale + screen_height // 2 + self.y_offset / z)
-        return x, y
+        # 데카르트 좌표계에서 변환
+        x_cartesian = (f * vertex[0] / z) * scale
+        y_cartesian = (f * vertex[1] / z) * scale
+
+        # 오프셋 추가
+        x_cartesian += self.x_offset / z
+        y_cartesian += self.y_offset / z
+
+        # Pygame 좌표계로 변환 (y 값 반전)
+        x_pygame = int(x_cartesian + screen_width // 2)
+        y_pygame = int(-y_cartesian + screen_height // 2)
+
+        return x_pygame, y_pygame
 
     def cal_original_coordination(self, vertex, scale):
-        x = (vertex[0]) * scale + self.x_offset
-        y = (vertex[1]) * scale + self.y_offset
-        z = (vertex[2]) * scale + self.z_offset
+        x = vertex[0] * scale + self.x_offset
+        y = vertex[1] * scale + self.y_offset
+        z = vertex[2] * scale + self.z_offset
         return x, y, z
 
     def render_obj(self, screen, scale, screen_width, screen_height):
-        adjusted_scale = scale / max(self.z_offset + 1, 0.1)
-        if self.isColliding:
-            for face in self.faces: # 여기서 면 단위로 작업 들어 가게 됨
-                general_points = [  # 3D Original Points
-                    self.cal_original_coordination(self.vertices[vert[0] - 1], adjusted_scale) for vert in face
-                ]
-                projected_points = [  # 2D Projected Points
-                    self.perspective_projection(self.vertices[vert[0] - 1], screen_width, screen_height, adjusted_scale)
-                    for vert in face
-                ]
+        adjusted_scale = scale / max(self.z_offset + 1, 1e-5)  # Z축 안정화
+        for face in self.faces:  # 폴리곤 단위로 작업
+            general_points = [
+                self.cal_original_coordination(self.vertices[vert[0] - 1], scale) for vert in face
+            ]
+            # Pygame 좌표계로 변환된 점들
+            projected_points = [
+                self.perspective_projection(self.vertices[vert[0] - 1], screen_width, screen_height, adjusted_scale)
+                for vert in face
+            ]
 
-                collision_results = check_polygon_collision(general_points, self.collider_box)
-
-                if collision_results:
-                    pygame.draw.polygon(screen, (255, 0, 0), projected_points, 1)
-                else:
-                    pygame.draw.polygon(screen, (255, 255, 255), projected_points, 1)
-        else:
-            for face in self.faces: # 여기서 면 단위로 작업 들어 가게 됨
-                projected_points = [  # 2D Projected Points
-                    self.perspective_projection(self.vertices[vert[0] - 1], screen_width, screen_height, adjusted_scale)
-                    for vert in face
-                ]
+            # 충돌 여부 확인
+            collision_results = check_polygon_collision(general_points, self.collider_box)
+            if self.isColliding and collision_results:
+                pygame.draw.polygon(screen, (255, 0, 0), projected_points, 1)
+            else:
                 pygame.draw.polygon(screen, (255, 255, 255), projected_points, 1)
 
 
@@ -133,17 +147,44 @@ class Character:
         self.collider_box = collider_box
 
     def cal_AABB_init(self, scale):
-        adjusted_scale = scale / max(self.z_offset + 1, 0.1)
-        general_points = []
-        for face in self.faces:
-            general_points += [  # 3D Original Points
-                self.cal_original_coordination(self.vertices[vert[0] - 1], adjusted_scale) for vert in face
-            ]
-        self.collider_box = polygon_AABB_init(general_points)
+        """AABB 정보 계산"""
+        transformed_points = [
+            self.cal_original_coordination(vertex, scale)
+            for vertex in self.vertices
+        ]
 
-    def cal_AABB_while(self, dx, dy, dz): # 초기 계산분에 offset 반영
+        min_x = min(point[0] for point in transformed_points)
+        max_x = max(point[0] for point in transformed_points)
+        min_y = min(point[1] for point in transformed_points)
+        max_y = max(point[1] for point in transformed_points)
+        min_z = min(point[2] for point in transformed_points)
+        max_z = max(point[2] for point in transformed_points)
+
         self.collider_box = {
-            "XY" : (self.collider_box["XY"][0] + dx, self.collider_box["XY"][1] + dy, self.collider_box["XY"][2]+ dx, self.collider_box["XY"][3] + dy),
-            "YZ" : (self.collider_box["YZ"][0] + dy, self.collider_box["YZ"][1] + dz, self.collider_box["YZ"][2] + dy, self.collider_box["YZ"][3] + dz),
-            "ZX" : (self.collider_box["ZX"][0] + dz, self.collider_box["ZX"][1] + dx, self.collider_box["ZX"][2] + dz, self.collider_box["ZX"][3] + dx),
+            "XY": (min_x, min_y, max_x, max_y),
+            "YZ": (min_y, min_z, max_y, max_z),
+            "ZX": (min_z, min_x, max_z, max_x),
+        }
+
+    def cal_AABB_while(self, dx, dy, dz):
+        """Box의 이동량을 반영한 AABB 업데이트"""
+        self.collider_box = {
+            "XY": (
+                self.collider_box["XY"][0] + dx,
+                self.collider_box["XY"][1] + dy,
+                self.collider_box["XY"][2] + dx,
+                self.collider_box["XY"][3] + dy,
+            ),
+            "YZ": (
+                self.collider_box["YZ"][0] + dy,
+                self.collider_box["YZ"][1] + dz,
+                self.collider_box["YZ"][2] + dy,
+                self.collider_box["YZ"][3] + dz,
+            ),
+            "ZX": (
+                self.collider_box["ZX"][0] + dz,
+                self.collider_box["ZX"][1] + dx,
+                self.collider_box["ZX"][2] + dz,
+                self.collider_box["ZX"][3] + dx,
+            ),
         }

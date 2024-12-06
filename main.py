@@ -29,7 +29,6 @@ Box.cal_AABB_init(scale)
 
 print(Stelle.collider_box)
 
-
 running = True
 while running:
     for event in pygame.event.get():
@@ -42,30 +41,33 @@ while running:
     stelle_dx, stelle_dy, stelle_dz = 0, 0, 0
     box_dx, box_dy, box_dz = 0, 0, 0
 
+    # Cartesian coordinate movement
     if keyEvent[pygame.K_w]:
-        y_offset -= speed
-        stelle_dy = -speed
-    if keyEvent[pygame.K_s]:
-        y_offset += speed
+        y_offset += speed  # Up in Cartesian coordinates
         stelle_dy = speed
+    if keyEvent[pygame.K_s]:
+        y_offset -= speed  # Down in Cartesian coordinates
+        stelle_dy = -speed
     if keyEvent[pygame.K_a]:
-        x_offset -= speed
+        x_offset -= speed  # Left in Cartesian coordinates
         stelle_dx = -speed
     if keyEvent[pygame.K_d]:
-        x_offset += speed
+        x_offset += speed  # Right in Cartesian coordinates
         stelle_dx = speed
     if keyEvent[pygame.K_LEFT]:
-        x_box -= speed
+        x_box -= speed  # Box moves left
         box_dx = -speed
     if keyEvent[pygame.K_RIGHT]:
-        x_box += speed
+        x_box += speed  # Box moves right
         box_dx = speed
     if keyEvent[pygame.K_UP]:
-        y_box -= speed
-        box_dy = -speed
-    if keyEvent[pygame.K_DOWN]:
-        y_box += speed
+        y_box += speed  # Box moves up
         box_dy = speed
+    if keyEvent[pygame.K_DOWN]:
+        y_box -= speed  # Box moves down
+        box_dy = -speed
+
+    # AABB Initialization debug
     if keyEvent[pygame.K_SPACE]:
         Stelle.cal_AABB_init(scale)
         print("Stelle: ")
@@ -75,12 +77,14 @@ while running:
 
     screen.fill((0, 0, 0))
 
+    # Update offsets
     Box.set_offset(x_box, y_box, z_box)
     Box.cal_AABB_while(box_dx, box_dy, box_dz)
 
     Stelle.set_offset(x_offset, y_offset, z_offset)
     Stelle.set_collider_box(Box.collider_box)
 
+    # Render objects
     Stelle.render_obj(screen, scale, 1280, 720)
     Box.render_obj(screen, scale, 1280, 720)
 
